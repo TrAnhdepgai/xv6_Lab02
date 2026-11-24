@@ -2,16 +2,15 @@
 #include "kernel/fcntl.h"
 #include "kernel/types.h"
 #include "kernel/riscv.h"
+#include "kernel/memlayout.h"
 #include "kernel/sysinfo.h"
 #include "user/user.h"
 
 //
 // pgtbltest: test cho Lab Page Table.
 //
-//   pgtbltest              chay cac test cua do an (pgaccess + sysinfo)
+//   pgtbltest              chay tat ca cac test (USYSCALL + pgaccess + sysinfo)
 //   pgtbltest <ten> ...    chi chay cac test duoc liet ke
-//   pgtbltest ugetpid      test ugetpid goc cua MIT (can map trang USYSCALL,
-//                          khong nam trong yeu cau do an nen mac dinh khong chay)
 //
 // Moi test chay trong mot tien trinh con rieng, nen mot test bi loi (hoac
 // bi kernel kill vi page fault) khong lam dung cac test con lai.
@@ -103,6 +102,31 @@ ugetpid_test()
     exit(0);
   }
   printf("ugetpid_test: OK\n");
+}
+
+// Trang USYSCALL chi cho phep doc (PTE_R | PTE_U): ghi vao phai bi
+// page fault va process bi kernel kill.
+void
+usyscall_ro_test()
+{
+  int pid, status;
+
+  printf("usyscall_ro_test starting (expect one usertrap message)\n");
+  testname = "usyscall_ro_test";
+
+  pid = fork();
+  if(pid < 0)
+    err("fork failed");
+  if(pid == 0){
+    *(volatile int *)USYSCALL = 0;
+    exit(0);   // khong duoc toi day
+  }
+  wait(&status);
+  if(status == 0)
+    err("USYSCALL page is writable");
+  if(ugetpid() != getpid())
+    err("ugetpid mismatch in parent");
+  printf("usyscall_ro_test: OK\n");
 }
 
 void
@@ -409,7 +433,8 @@ struct test {
   char *name;
   int deflt;     // chay mac dinh khi khong co tham so
 } tests[] = {
-  { ugetpid_test,        "ugetpid",  0 },
+  { ugetpid_test,        "ugetpid",  1 },
+  { usyscall_ro_test,    "usyscall", 1 },
   { pgaccess_test,       "pgaccess", 1 },
   { pgaccess_multi_test, "multi",    1 },
   { pgaccess_touch_test, "touch",    1 },
@@ -463,7 +488,7 @@ main(int argc, char *argv[])
   }
 
   if(ran == 0){
-    printf("usage: pgtbltest [all | ugetpid pgaccess multi touch args sysinfo]\n");
+    printf("usage: pgtbltest [all | ugetpid usyscall pgaccess multi touch args sysinfo]\n");
     exit(1);
   }
   if(failed){
