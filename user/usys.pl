@@ -36,6 +36,7 @@ entry("getpid");
 entry("sbrk");
 entry("sleep");
 entry("uptime");
+entry("sysinfo");
 entry("connect");
 entry("pgaccess");
 entry("setvmprint");

@@ -1,4 +1,5 @@
 struct stat;
+struct sysinfo;
 
 // system calls
 int fork(void);
@@ -23,6 +24,7 @@ int setvmprint(int);
 char* sbrk(int);
 int sleep(int);
 int uptime(void);
+int sysinfo(struct sysinfo*);
 #ifdef LAB_NET
 int connect(uint32, uint16, uint16);
 #endif
