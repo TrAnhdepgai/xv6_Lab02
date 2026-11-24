@@ -100,3 +100,12 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+uint64
+sys_setvmprint(void)
+{
+  int f;
+  argint(0, &f);
+  myproc()->printpt = f;
+  return 0;
+}
