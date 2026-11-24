@@ -5,6 +5,7 @@
 #include "memlayout.h"
 #include "spinlock.h"
 #include "proc.h"
+#include "sysinfo.h"
 
 uint64
 sys_exit(void)
@@ -71,13 +72,62 @@ sys_sleep(void)
 
 
 #ifdef LAB_PGTBL
-int
+#define PGACCESS_MAX 32
+
+uint64
 sys_pgaccess(void)
 {
-  // lab pgtbl: your code here.
+  uint64 base;
+  int len;
+  uint64 mask_addr;
+  unsigned int abits = 0;
+  struct proc *p = myproc();
+
+  argaddr(0, &base);
+  argint(1, &len);
+  argaddr(2, &mask_addr);
+
+  if(len < 0 || len > PGACCESS_MAX)
+    return -1;
+
+  uint64 va0 = PGROUNDDOWN(base);
+  for(int i = 0; i < len; i++){
+    uint64 va = va0 + (uint64)i * PGSIZE;
+    if(va >= MAXVA || va < va0)
+      return -1;
+    pte_t *pte = walk(p->pagetable, va, 0);
+    if(pte != 0 && (*pte & PTE_V) && (*pte & PTE_U) && (*pte & PTE_A)){
+      abits |= (1U << i);
+      *pte &= ~PTE_A;
+    }
+  }
+
+  sfence_vma();
+
+  if(copyout(p->pagetable, mask_addr, (char *)&abits, sizeof(abits)) < 0)
+    return -1;
+
   return 0;
 }
 #endif
+
+uint64
+sys_sysinfo(void)
+{
+  uint64 addr;
+  struct sysinfo info;
+  struct proc *p = myproc();
+
+  argaddr(0, &addr);
+
+  info.freemem = kfreemem();
+  info.nproc = nproc();
+
+  if(copyout(p->pagetable, addr, (char *)&info, sizeof(info)) < 0)
+    return -1;
+
+  return 0;
+}
 
 uint64
 sys_kill(void)
